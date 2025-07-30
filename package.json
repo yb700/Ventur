@@ -1,0 +1,42 @@
+{
+  "name": "dataflow-pro",
+  "version": "1.0.0",
+  "description": "Intelligent Data Aggregation Platform - A comprehensive SaaS solution for data collection, processing, and lead generation",
+  "main": "index.js",
+  "scripts": {
+    "dev": "cd ventur && npm run dev",
+    "build": "cd ventur && npm run build",
+    "start": "cd ventur && npm run start",
+    "lint": "cd ventur && npm run lint",
+    "test": "cd ventur && npm run test",
+    "install-deps": "npm install && cd ventur && npm install",
+    "setup": "npm run install-deps && echo 'Setup complete! Run npm run dev to start development server'"
+  },
+  "keywords": [
+    "data-collection",
+    "web-scraping",
+    "saas",
+    "nextjs",
+    "typescript",
+    "python",
+    "supabase",
+    "lead-generation"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "prisma": "^6.12.0"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "github:supabase/supabase-js",
+    "supabase": "^2.31.4"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/dataflow-pro.git"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  }
+}

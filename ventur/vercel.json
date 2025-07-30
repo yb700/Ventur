@@ -1,0 +1,12 @@
+{
+    "crons": [
+        {
+            "path": "/api/cron/scrape-applications",
+            "schedule": "0 1 * * *"
+        },
+        {
+            "path": "/api/cron/geocode-applications",
+            "schedule": "30 1 * * *"
+        }
+    ]
+}
