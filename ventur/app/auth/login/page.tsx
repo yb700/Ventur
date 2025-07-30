@@ -74,11 +74,11 @@ export default function LoginPage() {
                                     <div className="absolute -inset-1 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-xl blur opacity-20"></div>
                                 </div>
                                 <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
-                                    VENTUR
+                                    LOREM
                                 </span>
                             </div>
                             <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome Back</h2>
-                            <p className="text-gray-600">Sign in to your account to continue</p>
+                            <p className="text-gray-600">Sign in to your account</p>
                         </div>
 
                         {/* Error Message */}
@@ -133,11 +133,6 @@ export default function LoginPage() {
                                         disabled={loading}
                                     />
                                 </div>
-                                <div className="mt-2 text-right">
-                                    <Link href="/auth/forgot-password" className="text-sm text-purple-600 hover:text-purple-700 transition-colors">
-                                        Forgot password?
-                                    </Link>
-                                </div>
                             </div>
 
                             <button
@@ -165,16 +160,16 @@ export default function LoginPage() {
                                 <div className="w-full border-t border-gray-300"></div>
                             </div>
                             <div className="relative flex justify-center text-sm">
-                                <span className="px-2 bg-white text-gray-500">New to VENTUR?</span>
+                                <span className="px-2 bg-white text-gray-500">New to LOREM?</span>
                             </div>
                         </div>
 
-                        {/* Sign Up Link */}
+                        {/* Register Link */}
                         <Link
                             href="/auth/register"
                             className="w-full block text-center border-2 border-gray-300 text-gray-700 py-3 px-6 rounded-xl font-semibold hover:border-purple-300 hover:text-purple-600 transition-all duration-300 cursor-pointer"
                         >
-                            Create an Account
+                            Create Account
                         </Link>
                     </div>
                 </div>
@@ -185,11 +180,11 @@ export default function LoginPage() {
                 <div className="absolute inset-0 flex items-center justify-center">
                     <div className="text-center text-white/80">
                         <div className="w-32 h-32 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-8 backdrop-blur-sm">
-                            <Target className="w-16 h-16 text-white/60" />
+                            <LogIn className="w-16 h-16 text-white/60" />
                         </div>
-                        <h1 className="text-4xl font-bold mb-4">Welcome to VENTUR</h1>
+                        <h1 className="text-4xl font-bold mb-4">Welcome to LOREM</h1>
                         <p className="text-xl opacity-80 max-w-md">
-                            Connect with construction opportunities and grow your business with intelligent planning monitoring.
+                            Connect with marketing opportunities and grow your business with intelligent data monitoring.
                         </p>
                     </div>
                 </div>

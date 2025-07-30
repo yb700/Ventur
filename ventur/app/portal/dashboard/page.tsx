@@ -3,11 +3,9 @@
 // app/(portal)/dashboard/page.tsx
 "use client";
 
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { supabase } from '@/utils/supabase/client';
-import { User } from '@supabase/supabase-js';
-import { Search, MapPin, FolderPlus, Check, Loader2, Info, Map, List, Grid3X3, Filter, X, Plus, ChevronDown, Calendar, Building2, AlertCircle } from 'lucide-react';
-import { Database } from '@/types/supabase';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Search, MapPin, FolderPlus, Check, Loader2, Info, Map, List, Grid3X3, Filter, X, Plus, ChevronDown, Calendar, Building2, AlertCircle, TrendingUp, Users, Database, Zap } from 'lucide-react';
+import { mockDataService, MockApplication, MockAnalytics } from '@/utils/mockData';
 import dynamic from 'next/dynamic';
 
 // Dynamically import the map component to avoid SSR issues
@@ -23,15 +21,9 @@ const MapComponent = dynamic(() => import('@/components/ApplicationsMap'), {
     )
 });
 
-type PlanningApplication = Database['public']['Tables']['applications']['Row'];
-type Bucket = Database['public']['Tables']['buckets']['Row'];
-type Profile = Database['public']['Tables']['profiles']['Row'];
-
 export default function DashboardPage() {
-    const [user, setUser] = useState<User | null>(null);
-    const [profile, setProfile] = useState<Profile | null>(null);
-    const [applications, setApplications] = useState<PlanningApplication[]>([]);
-    const [buckets, setBuckets] = useState<Bucket[]>([]);
+    const [applications, setApplications] = useState<MockApplication[]>([]);
+    const [analytics, setAnalytics] = useState<MockAnalytics | null>(null);
     const [savedApplicationIds, setSavedApplicationIds] = useState<Set<string>>(new Set());
 
     const [loading, setLoading] = useState(true);
@@ -39,9 +31,11 @@ export default function DashboardPage() {
     const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
 
     const [searchTerm, setSearchTerm] = useState('');
-    const [councilFilter, setCouncilFilter] = useState('all');
+    const [sourceFilter, setSourceFilter] = useState('all');
     const [viewMode, setViewMode] = useState<'list' | 'grid' | 'map'>('grid');
     const [showFilters, setShowFilters] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
 
     const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
     const [showBucketModal, setShowBucketModal] = useState(false);
@@ -81,10 +75,10 @@ export default function DashboardPage() {
 
     // Get user location on component mount - only set default location
     useEffect(() => {
-        if (profile && !userLocation) {
+        if (!userLocation) {
             setUserLocation({ lat: 51.5074, lng: -0.1278 });
         }
-    }, [profile, userLocation]);
+    }, [userLocation]);
 
     // Request location when user switches to map view
     useEffect(() => {
@@ -96,85 +90,59 @@ export default function DashboardPage() {
     useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
-            const { data: { user: currentUser } } = await supabase.auth.getUser();
+            try {
+                // Fetch applications and analytics in parallel
+                const [appData, analyticsData] = await Promise.all([
+                    mockDataService.getApplications({
+                        page: currentPage,
+                        limit: 20,
+                        search: searchTerm,
+                        source_id: sourceFilter === 'all' ? undefined : sourceFilter
+                    }),
+                    mockDataService.getAnalyticsOverview()
+                ]);
 
-            if (!currentUser) {
-                window.location.href = '/auth/login';
-                return;
-            }
+                setApplications(appData.items);
+                setTotalPages(appData.pagination.pages);
+                setAnalytics(analyticsData);
 
-            setUser(currentUser);
-
-            // Fetch all data in parallel
-            const [appData, bucketData, profileData] = await Promise.all([
-                supabase
-                    .from('applications')
-                    .select('*')
-                    .order('application_validated', { ascending: false, nullsFirst: false })
-                    .limit(100),
-                supabase
-                    .from('buckets')
-                    .select('*')
-                    .eq('user_id', currentUser.id)
-                    .order('created_at', { ascending: false }),
-                supabase
-                    .from('profiles')
-                    .select('*')
-                    .eq('id', currentUser.id)
-                    .single()
-            ]);
-
-            if (appData.error) {
-                console.error('Error fetching applications:', appData.error);
-                setNotification({ message: 'Failed to load applications.', type: 'error' });
-            } else {
-                setApplications(appData.data ?? []);
-            }
-
-            if (bucketData.data) {
-                setBuckets(bucketData.data);
-            }
-
-            if (profileData.data) {
-                setProfile(profileData.data);
-            }
-
-            // Fetch saved application IDs from all buckets
-            if (bucketData.data && bucketData.data.length > 0) {
-                const bucketIds = bucketData.data.map(bucket => bucket.id);
-                const { data: savedItems } = await supabase
-                    .from('bucket_applications')
-                    .select('application_id')
-                    .in('bucket_id', bucketIds);
-
-                if (savedItems) {
-                    setSavedApplicationIds(new Set(savedItems.map(item => item.application_id)));
+                // Simulate some saved applications
+                const savedIds = new Set<string>();
+                for (let i = 0; i < Math.floor(Math.random() * 5); i++) {
+                    if (appData.items[i]) {
+                        savedIds.add(appData.items[i].id);
+                    }
                 }
-            }
+                setSavedApplicationIds(savedIds);
 
-            setLoading(false);
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                setNotification({ message: 'Failed to load data.', type: 'error' });
+            } finally {
+                setLoading(false);
+            }
         };
 
         fetchData();
-    }, []);
+    }, [currentPage, searchTerm, sourceFilter]);
 
     const filteredApplications = useMemo(() => {
         return applications.filter(app => {
             const matchesSearch =
                 searchTerm === '' ||
-                app.address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                app.proposal?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                app.reference?.toLowerCase().includes(searchTerm.toLowerCase());
+                app.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                app.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                app.category?.toLowerCase().includes(searchTerm.toLowerCase());
 
-            const matchesCouncil = councilFilter === 'all' || app.council_id === councilFilter;
+            const matchesSource = sourceFilter === 'all' || app.source_id === sourceFilter;
 
-            return matchesSearch && matchesCouncil;
+            return matchesSearch && matchesSource;
         });
-    }, [applications, searchTerm, councilFilter]);
+    }, [applications, searchTerm, sourceFilter]);
 
-    const availableCouncils = useMemo(() => {
-        const councils = new Set(applications.map(app => app.council_id));
-        return Array.from(councils).sort();
+    const availableSources = useMemo(() => {
+        const sources = new Set(applications.map(app => app.source_id));
+        return Array.from(sources).sort();
     }, [applications]);
 
     const showNotification = (message: string, type: 'success' | 'error') => {
@@ -183,27 +151,14 @@ export default function DashboardPage() {
     };
 
     const handleSaveToBucket = useCallback(async (applicationId: string, bucketId: string) => {
-        if (!user) return;
         setSavingId(applicationId);
 
         try {
-            const { error: insertError } = await supabase
-                .from('bucket_applications')
-                .insert({
-                    bucket_id: bucketId,
-                    application_id: applicationId,
-                });
+            // Simulate API call delay
+            await new Promise(resolve => setTimeout(resolve, 1000));
 
-            if (insertError) {
-                if (insertError.code === '23505') {
-                    showNotification('This application is already in this bucket.', 'error');
-                } else {
-                    throw insertError;
-                }
-            } else {
-                showNotification('Application saved to bucket!', 'success');
-                setSavedApplicationIds(prev => new Set(prev).add(applicationId));
-            }
+            showNotification('Application saved to bucket!', 'success');
+            setSavedApplicationIds(prev => new Set(prev).add(applicationId));
 
         } catch (error: any) {
             console.error("Error saving to bucket:", error);
@@ -213,20 +168,17 @@ export default function DashboardPage() {
             setShowBucketModal(false);
             setSelectedApplicationForBucket(null);
         }
-    }, [user]);
+    }, []);
 
     const openBucketModal = (applicationId: string) => {
         setSelectedApplicationForBucket(applicationId);
         setShowBucketModal(true);
     };
 
-    const getStatusColor = (status: string | null) => {
-        if (!status) return 'badge-ghost';
-        const statusLower = status.toLowerCase();
-        if (statusLower.includes('approved')) return 'badge-success';
-        if (statusLower.includes('rejected') || statusLower.includes('refused')) return 'badge-error';
-        if (statusLower.includes('pending') || statusLower.includes('under')) return 'badge-warning';
-        return 'badge-info';
+    const getStatusColor = (qualityScore: number) => {
+        if (qualityScore >= 0.9) return 'badge-success';
+        if (qualityScore >= 0.8) return 'badge-warning';
+        return 'badge-error';
     };
 
     const formatDate = (dateString: string | null) => {
@@ -238,14 +190,18 @@ export default function DashboardPage() {
         });
     };
 
+    const formatQualityScore = (score: number) => {
+        return `${(score * 100).toFixed(0)}%`;
+    };
+
     return (
         <div className="space-y-6 animate-fade-in">
             {/* Page Header */}
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-8">
                 <div>
-                    <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2">Planning Applications</h1>
+                    <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2">Data Collection Dashboard</h1>
                     <p className="text-gray-600 text-sm sm:text-base">
-                        Browse and save planning applications from your area
+                        Monitor and manage your collected data from various sources
                     </p>
                 </div>
 
@@ -260,22 +216,68 @@ export default function DashboardPage() {
                             <Grid3X3 className="w-4 h-4" />
                         </button>
                         <button
-                            className={`px-3 py-2 transition-all duration-200 ${viewMode === 'list' ? 'bg-purple-600 text-white shadow-md' : 'text-gray-600 hover:text-purple-600 hover:bg-purple-50'}`}
+                            className={`px-3 py-2 rounded-r-xl transition-all duration-200 ${viewMode === 'list' ? 'bg-purple-600 text-white shadow-md' : 'text-gray-600 hover:text-purple-600 hover:bg-purple-50'}`}
                             onClick={() => setViewMode('list')}
                             title="List view"
                         >
                             <List className="w-4 h-4" />
                         </button>
-                        <button
-                            className={`px-3 py-2 rounded-r-xl transition-all duration-200 ${viewMode === 'map' ? 'bg-purple-600 text-white shadow-md' : 'text-gray-600 hover:text-purple-600 hover:bg-purple-50'}`}
-                            onClick={() => setViewMode('map')}
-                            title="Map view"
-                        >
-                            <Map className="w-4 h-4" />
-                        </button>
                     </div>
                 </div>
             </div>
+
+            {/* Analytics Cards */}
+            {analytics && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div className="card bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+                        <div className="card-body p-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <div className="text-3xl font-bold">{analytics.total_records.toLocaleString()}</div>
+                                    <div className="text-blue-100">Total Records</div>
+                                </div>
+                                <Database className="w-8 h-8 text-blue-200" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="card bg-gradient-to-br from-green-500 to-green-600 text-white">
+                        <div className="card-body p-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <div className="text-3xl font-bold">{analytics.records_today}</div>
+                                    <div className="text-green-100">Today&apos;s Records</div>
+                                </div>
+                                <TrendingUp className="w-8 h-8 text-green-200" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="card bg-gradient-to-br from-purple-500 to-purple-600 text-white">
+                        <div className="card-body p-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <div className="text-3xl font-bold">{analytics.total_sources}</div>
+                                    <div className="text-purple-100">Data Sources</div>
+                                </div>
+                                <Users className="w-8 h-8 text-purple-200" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="card bg-gradient-to-br from-orange-500 to-orange-600 text-white">
+                        <div className="card-body p-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <div className="text-3xl font-bold">{analytics.collection_success_rate}%</div>
+                                    <div className="text-orange-100">Success Rate</div>
+                                </div>
+                                <Zap className="w-8 h-8 text-orange-200" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Notification Toast */}
             {notification && (
@@ -298,14 +300,14 @@ export default function DashboardPage() {
                             <input
                                 type="text"
                                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors"
-                                placeholder="Search by address, proposal, or reference..."
+                                placeholder="Search by title, description, or category..."
                                 value={searchTerm}
                                 onChange={e => setSearchTerm(e.target.value)}
                             />
                         </label>
                     </div>
 
-                    {/* Council Filter */}
+                    {/* Source Filter */}
                     <div className="w-full lg:w-auto">
                         <label className="relative block">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -313,13 +315,13 @@ export default function DashboardPage() {
                             </div>
                             <select
                                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors appearance-none bg-white"
-                                value={councilFilter}
-                                onChange={e => setCouncilFilter(e.target.value)}
+                                value={sourceFilter}
+                                onChange={e => setSourceFilter(e.target.value)}
                             >
-                                <option value="all">All Councils</option>
-                                {availableCouncils.map(council => (
-                                    <option key={council} value={council}>
-                                        {council.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                <option value="all">All Sources</option>
+                                {availableSources.map(source => (
+                                    <option key={source} value={source}>
+                                        {source.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                                     </option>
                                 ))}
                             </select>
@@ -348,21 +350,22 @@ export default function DashboardPage() {
                         <div className="border-t border-gray-200 mt-4 pt-4">
                             <div className="flex flex-wrap gap-4">
                                 <div className="flex-1 min-w-48">
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
                                     <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors">
-                                        <option value="all">All Statuses</option>
-                                        <option value="pending">Pending</option>
-                                        <option value="approved">Approved</option>
-                                        <option value="rejected">Rejected</option>
+                                        <option value="all">All Categories</option>
+                                        <option value="technology">Technology</option>
+                                        <option value="business">Business</option>
+                                        <option value="finance">Finance</option>
+                                        <option value="healthcare">Healthcare</option>
                                     </select>
                                 </div>
                                 <div className="flex-1 min-w-48">
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Quality Score</label>
                                     <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors">
-                                        <option value="all">All Time</option>
-                                        <option value="week">Last Week</option>
-                                        <option value="month">Last Month</option>
-                                        <option value="quarter">Last 3 Months</option>
+                                        <option value="all">All Scores</option>
+                                        <option value="high">High (90%+)</option>
+                                        <option value="medium">Medium (80-89%)</option>
+                                        <option value="low">Low (&lt;80%)</option>
                                     </select>
                                 </div>
                             </div>
@@ -374,7 +377,7 @@ export default function DashboardPage() {
             {/* Results Count */}
             <div className="flex items-center justify-between">
                 <p className="text-sm text-base-content/60">
-                    Showing {filteredApplications.length} of {applications.length} applications
+                    Showing {filteredApplications.length} of {analytics?.total_records || 0} records
                 </p>
                 {viewMode === 'map' && (
                     <div className="flex items-center gap-2">
@@ -398,17 +401,7 @@ export default function DashboardPage() {
                     <div className="flex justify-center items-center h-64">
                         <div className="text-center">
                             <span className="loading loading-spinner loading-lg text-primary mb-4"></span>
-                            <p className="text-base-content/60">Loading applications...</p>
-                        </div>
-                    </div>
-                ) : viewMode === 'map' ? (
-                    <div className="card bg-base-100 shadow-sm border border-base-300">
-                        <div className="card-body p-0">
-                            <MapComponent
-                                applications={filteredApplications}
-                                userLocation={userLocation}
-                                councilFilter={councilFilter}
-                            />
+                            <p className="text-base-content/60">Loading data...</p>
                         </div>
                     </div>
                 ) : viewMode === 'list' ? (
@@ -418,10 +411,10 @@ export default function DashboardPage() {
                                 <table className="table">
                                     <thead>
                                         <tr>
-                                            <th>Address & Reference</th>
-                                            <th>Proposal</th>
-                                            <th>Council</th>
-                                            <th>Status & Date</th>
+                                            <th>Title & Source</th>
+                                            <th>Description</th>
+                                            <th>Category</th>
+                                            <th>Quality & Date</th>
                                             <th className="text-right">Action</th>
                                         </tr>
                                     </thead>
@@ -429,21 +422,21 @@ export default function DashboardPage() {
                                         {filteredApplications.length > 0 ? filteredApplications.map(app => (
                                             <tr key={app.id} className="hover">
                                                 <td>
-                                                    <div className="font-bold">{app.address}</div>
-                                                    <div className="text-sm opacity-50">{app.reference}</div>
+                                                    <div className="font-bold">{app.title}</div>
+                                                    <div className="text-sm opacity-50">{app.source_id}</div>
                                                 </td>
-                                                <td className="max-w-md whitespace-normal">{app.proposal}</td>
+                                                <td className="max-w-md whitespace-normal">{app.description}</td>
                                                 <td>
                                                     <span className="badge badge-outline badge-sm">
-                                                        {app.council_id.replace(/_/g, ' ')}
+                                                        {app.category}
                                                     </span>
                                                 </td>
                                                 <td>
-                                                    <span className={`badge badge-sm ${getStatusColor(app.status)}`}>
-                                                        {app.status || 'N/A'}
+                                                    <span className={`badge badge-sm ${getStatusColor(app.quality_score)}`}>
+                                                        {formatQualityScore(app.quality_score)}
                                                     </span>
                                                     <div className="text-sm opacity-50 mt-1">
-                                                        {formatDate(app.application_validated)}
+                                                        {formatDate(app.collected_at)}
                                                     </div>
                                                 </td>
                                                 <td className="text-right">
@@ -467,7 +460,7 @@ export default function DashboardPage() {
                                             <tr>
                                                 <td colSpan={5} className="text-center p-8">
                                                     <Info className="w-8 h-8 mx-auto text-base-content/30 mb-2" />
-                                                    <h3 className="font-bold">No applications found</h3>
+                                                    <h3 className="font-bold">No data found</h3>
                                                     <p className="text-sm text-base-content/60">
                                                         Try adjusting your search or filters
                                                     </p>
@@ -488,33 +481,31 @@ export default function DashboardPage() {
                                     <div className="flex items-start justify-between mb-3">
                                         <div className="flex-1">
                                             <h3 className="font-bold text-lg mb-1 line-clamp-2">
-                                                {app.address}
+                                                {app.title}
                                             </h3>
                                             <p className="text-sm text-base-content/60 mb-2">
-                                                {app.reference}
+                                                {app.source_id}
                                             </p>
                                         </div>
                                         <div className="flex flex-col items-end gap-2">
-                                            <span className={`badge badge-sm ${getStatusColor(app.status)}`}>
-                                                {app.status || 'N/A'}
+                                            <span className={`badge badge-sm ${getStatusColor(app.quality_score)}`}>
+                                                {formatQualityScore(app.quality_score)}
                                             </span>
-                                            {app.latitude && app.longitude && (
-                                                <div className="text-xs text-base-content/40">
-                                                    📍 Has location
-                                                </div>
-                                            )}
+                                            <div className="text-xs text-base-content/40">
+                                                📊 {app.content_stats.word_count} words
+                                            </div>
                                         </div>
                                     </div>
 
                                     <p className="text-sm mb-4 line-clamp-3">
-                                        {app.proposal || 'No proposal description available'}
+                                        {app.description}
                                     </p>
 
                                     <div className="flex items-center justify-between text-xs text-base-content/60 mb-4">
                                         <span className="badge badge-outline badge-xs">
-                                            {app.council_id.replace(/_/g, ' ')}
+                                            {app.category}
                                         </span>
-                                        <span>{formatDate(app.application_validated)}</span>
+                                        <span>{formatDate(app.collected_at)}</span>
                                     </div>
 
                                     <div className="card-actions justify-end">
@@ -538,9 +529,9 @@ export default function DashboardPage() {
                         )) : (
                             <div className="col-span-full text-center py-12">
                                 <Info className="w-12 h-12 mx-auto text-base-content/30 mb-4" />
-                                <h3 className="font-bold text-lg mb-2">No applications found</h3>
+                                <h3 className="font-bold text-lg mb-2">No data found</h3>
                                 <p className="text-base-content/60">
-                                    Try adjusting your search or filters to find planning applications
+                                    Try adjusting your search or filters to find collected data
                                 </p>
                             </div>
                         )}
@@ -548,35 +539,74 @@ export default function DashboardPage() {
                 )}
             </>
 
+            {/* Pagination */}
+            {totalPages > 1 && (
+                <div className="flex justify-center mt-8">
+                    <div className="join">
+                        <button
+                            className="join-item btn"
+                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                            disabled={currentPage === 1}
+                        >
+                            «
+                        </button>
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                            const page = i + 1;
+                            return (
+                                <button
+                                    key={page}
+                                    className={`join-item btn ${currentPage === page ? 'btn-active' : ''}`}
+                                    onClick={() => setCurrentPage(page)}
+                                >
+                                    {page}
+                                </button>
+                            );
+                        })}
+                        <button
+                            className="join-item btn"
+                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                            disabled={currentPage === totalPages}
+                        >
+                            »
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* Bucket Selection Modal */}
             {showBucketModal && (
                 <dialog className="modal modal-open">
                     <div className="modal-box">
                         <h3 className="font-bold text-lg mb-4">Save to Bucket</h3>
                         <p className="text-sm text-base-content/60 mb-6">
-                            Choose which bucket to save this application to:
+                            Choose which bucket to save this data to:
                         </p>
 
                         <div className="space-y-3">
-                            {buckets.length > 0 ? buckets.map(bucket => (
-                                <button
-                                    key={bucket.id}
-                                    className="btn btn-outline w-full justify-start"
-                                    onClick={() => handleSaveToBucket(selectedApplicationForBucket!, bucket.id)}
-                                    disabled={savingId === selectedApplicationForBucket}
-                                >
-                                    <FolderPlus className="w-4 h-4 mr-2" />
-                                    {bucket.title}
-                                </button>
-                            )) : (
-                                <div className="text-center py-4">
-                                    <p className="text-base-content/60 mb-4">No buckets found</p>
-                                    <button className="btn btn-primary btn-sm">
-                                        <Plus className="w-4 h-4 mr-2" />
-                                        Create First Bucket
-                                    </button>
-                                </div>
-                            )}
+                            <button
+                                className="btn btn-outline w-full justify-start"
+                                onClick={() => handleSaveToBucket(selectedApplicationForBucket!, 'bucket_1')}
+                                disabled={savingId === selectedApplicationForBucket}
+                            >
+                                <FolderPlus className="w-4 h-4 mr-2" />
+                                High Priority Leads
+                            </button>
+                            <button
+                                className="btn btn-outline w-full justify-start"
+                                onClick={() => handleSaveToBucket(selectedApplicationForBucket!, 'bucket_2')}
+                                disabled={savingId === selectedApplicationForBucket}
+                            >
+                                <FolderPlus className="w-4 h-4 mr-2" />
+                                Follow Up
+                            </button>
+                            <button
+                                className="btn btn-outline w-full justify-start"
+                                onClick={() => handleSaveToBucket(selectedApplicationForBucket!, 'bucket_3')}
+                                disabled={savingId === selectedApplicationForBucket}
+                            >
+                                <FolderPlus className="w-4 h-4 mr-2" />
+                                Research
+                            </button>
                         </div>
 
                         <div className="modal-action">

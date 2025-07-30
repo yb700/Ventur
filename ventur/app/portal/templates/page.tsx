@@ -124,9 +124,9 @@ const LAYOUTS = {
     }
 };
 
-const DEFAULT_TEMPLATE_CONTENT = `<p>We hope this letter finds you well. We are writing regarding your recent planning application for works at <strong>{{ address }}</strong> (Reference: {{ reference }}).</p>
+const DEFAULT_TEMPLATE_CONTENT = `<p>We hope this letter finds you well. We are writing regarding your recent marketing application for works at <strong>{{ address }}</strong> (Reference: {{ reference }}).</p>
 
-<p>As a local construction company with extensive experience in similar projects, we would be delighted to offer our services for your proposed development. Our team specializes in delivering high-quality construction solutions that meet both your requirements and local planning standards.</p>
+<p>As a local marketing agency with extensive experience in similar projects, we would be delighted to offer our services for your proposed development. Our team specializes in delivering high-quality marketing solutions that meet both your requirements and industry standards.</p>
 
 <p>We have successfully completed numerous projects in the area and have built a strong reputation for:</p>
 <ul style="margin: 20px 0; padding-left: 20px;">

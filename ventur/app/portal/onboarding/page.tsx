@@ -45,7 +45,7 @@ export default function OnboardingPage() {
     const steps = [
         {
             id: 1,
-            title: 'Welcome to Planning Tracker',
+            title: 'Welcome to Lorem',
             description: 'Let\'s get you set up in just a few steps',
             icon: Target
         },
@@ -57,8 +57,8 @@ export default function OnboardingPage() {
         },
         {
             id: 3,
-            title: 'Your Location',
-            description: 'Help us show you relevant planning applications',
+            title: 'Your Focus Areas',
+            description: 'Help us show you relevant marketing opportunities',
             icon: MapPin
         },
         {

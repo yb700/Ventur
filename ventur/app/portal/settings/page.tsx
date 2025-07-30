@@ -34,8 +34,8 @@ import Image from 'next/image';
 type UserProfile = Database['public']['Tables']['profiles']['Row'];
 
 /**
- * Modern settings page for Ventur users.
- * Organized with security-first design and professional layout.
+ * Modern settings page for Lorem users.
+ * Provides comprehensive account management and preferences.
  */
 export default function SettingsPage() {
     const { theme, setTheme, isDarkMode, cycleTheme } = useTheme();
