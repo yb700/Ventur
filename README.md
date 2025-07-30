@@ -88,6 +88,27 @@ A comprehensive full-stack SaaS platform that demonstrates advanced web scraping
    npm run dev
    ```
 
+## 🔐 Demo Access
+
+### Test Credentials
+For demonstration purposes, you can use these test credentials to access the application:
+
+- **Email**: `demo@lorem.com`
+- **Password**: `demo123`
+
+### Demo Pages
+- **Main Demo**: `http://localhost:3000/demo` - Full dashboard with mock data
+- **Login Page**: `http://localhost:3000/auth/login` - Use test credentials above
+- **Registration**: `http://localhost:3000/auth/register` - Simulated registration process
+
+### Features Available in Demo
+- ✅ Interactive dashboard with mock data
+- ✅ Data visualization and analytics
+- ✅ Template management system
+- ✅ User settings and preferences
+- ✅ Responsive design across all devices
+- ✅ Real-time data updates (simulated)
+
 ## 🔧 Development Workflow
 
 ### Git Branching Strategy

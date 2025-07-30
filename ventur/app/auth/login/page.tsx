@@ -10,6 +10,7 @@ import { Mail, Lock, LogIn, Target, ArrowLeft } from 'lucide-react';
 /**
  * Modern login page component.
  * Handles user sign-in using Supabase auth with beautiful UI.
+ * Includes test credentials for demo purposes.
  */
 export default function LoginPage() {
     const router = useRouter();
@@ -25,20 +26,46 @@ export default function LoginPage() {
 
         console.log('Attempting login for:', email);
 
-        const { data, error: signInError } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-        });
+        // Test credentials for demo purposes
+        const testCredentials = {
+            email: 'demo@lorem.com',
+            password: 'demo123'
+        };
 
-        if (signInError) {
-            console.error('Login error:', signInError);
-            setError(signInError.message);
-            setLoading(false);
-        } else {
-            console.log('Login successful for user:', data.user?.id);
-            // Let the middleware handle the routing based on onboarding status
+        // Check if using test credentials
+        if (email === testCredentials.email && password === testCredentials.password) {
+            console.log('Using test credentials - simulating successful login');
+            
+            // Simulate login delay
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            console.log('Test login successful');
             router.push('/portal');
             router.refresh();
+            setLoading(false);
+            return;
+        }
+
+        // Try actual Supabase authentication
+        try {
+            const { data, error: signInError } = await supabase.auth.signInWithPassword({
+                email,
+                password,
+            });
+
+            if (signInError) {
+                console.error('Login error:', signInError);
+                setError(signInError.message);
+                setLoading(false);
+            } else {
+                console.log('Login successful for user:', data.user?.id);
+                router.push('/portal');
+                router.refresh();
+            }
+        } catch (error) {
+            console.error('Unexpected login error:', error);
+            setError('An unexpected error occurred. Please try again.');
+            setLoading(false);
         }
     };
 
@@ -79,6 +106,19 @@ export default function LoginPage() {
                             </div>
                             <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome Back</h2>
                             <p className="text-gray-600">Sign in to your account</p>
+                        </div>
+
+                        {/* Test Credentials Info */}
+                        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                            <div className="flex items-center gap-2 text-blue-700">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <div>
+                                    <h3 className="font-semibold text-sm">Demo Credentials</h3>
+                                    <p className="text-xs">Email: demo@lorem.com | Password: demo123</p>
+                                </div>
+                            </div>
                         </div>
 
                         {/* Error Message */}
